@@ -8,7 +8,7 @@ A fast TCP port scanner with two interfaces — a terminal-style **web UI** that
 
 ## Live Demo
 
-**[yourusername.github.io/port-scanner](https://yourusername.github.io/port-scanner)**
+**[Malaka-Nipun.github.io/port-scanner](https://Malaka-Nipun.github.io/port-scanner)**
 
 ---
 
