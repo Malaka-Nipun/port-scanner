@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PortScan — TCP Port Scanner</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d0f12;
+    --bg2:       #13161a;
+    --bg3:       #1a1e24;
+    --border:    #252a32;
+    --border2:   #2e3540;
+    --green:     #3dd68c;
+    --green-dim: #1a6b45;
+    --red:       #f47067;
+    --yellow:    #e5c07b;
+    --blue:      #61afef;
+    --cyan:      #56b6c2;
+    --gray:      #5c6370;
+    --text:      #abb2bf;
+    --text-dim:  #4b5263;
+    --white:     #dde1e8;
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --sans: 'Inter', system-ui, sans-serif;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* ── header ── */
+  header {
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--green);
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.35; }
+  }
+
+  .header-meta {
+    font-size: 12px;
+    color: var(--gray);
+    font-family: var(--mono);
+  }
+
+  /* ── main layout ── */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    grid-template-rows: 1fr;
+    min-height: 0;
+  }
+
+  /* ── left panel ── */
+  .panel-left {
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .panel-section {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-section:last-child { border-bottom: none; }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gray);
+    margin-bottom: 14px;
+  }
+
+  /* ── form elements ── */
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--gray);
+    margin-bottom: 5px;
+    font-family: var(--mono);
+  }
+
+  input[type="text"], input[type="number"], select {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--white);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 8px 12px;
+    outline: none;
+    transition: border-color 0.15s;
+    margin-bottom: 14px;
+  }
+
+  input[type="text"]:focus,
+  input[type="number"]:focus,
+  select:focus {
+    border-color: var(--green-dim);
+    box-shadow: 0 0 0 2px rgba(61,214,140,0.08);
+  }
+
+  select { cursor: pointer; }
+  select option { background: var(--bg3); }
+
+  .input-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  /* ── preset chips ── */
+  .preset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .preset-chip {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    padding: 6px 0;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.12s, color 0.12s, background 0.12s;
+    user-select: none;
+  }
+
+  .preset-chip:hover { border-color: var(--border2); background: #1f232b; }
+
+  .preset-chip.active {
+    border-color: var(--green-dim);
+    color: var(--green);
+    background: rgba(61,214,140,0.06);
+  }
+
+  /* ── scan button ── */
+  .scan-btn {
+    width: 100%;
+    padding: 11px;
+    background: var(--green);
+    color: #0d0f12;
+    border: none;
+    border-radius: 7px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    transition: opacity 0.15s, transform 0.1s;
+    margin-top: 4px;
+  }
+
+  .scan-btn:hover:not(:disabled) { opacity: 0.88; }
+  .scan-btn:active:not(:disabled) { transform: scale(0.98); }
+
+  .scan-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .stop-btn {
+    width: 100%;
+    padding: 11px;
+    background: transparent;
+    color: var(--red);
+    border: 1px solid var(--red);
+    border-radius: 7px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s;
+    margin-top: 6px;
+    display: none;
+  }
+
+  .stop-btn:hover { background: rgba(244,112,103,0.08); }
+
+  /* ── options toggles ── */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+  }
+
+  .toggle-label {
+    font-size: 12px;
+    color: var(--text);
+    font-family: var(--mono);
+  }
+
+  .toggle {
+    position: relative;
+    width: 34px;
+    height: 18px;
+  }
+
+  .toggle input { opacity: 0; width: 0; height: 0; }
+
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  .toggle-track::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--gray);
+    transition: transform 0.2s, background 0.2s;
+  }
+
+  .toggle input:checked + .toggle-track {
+    background: rgba(61,214,140,0.15);
+    border-color: var(--green-dim);
+  }
+
+  .toggle input:checked + .toggle-track::after {
+    transform: translateX(16px);
+    background: var(--green);
+  }
+
+  /* ── right panel: terminal ── */
+  .panel-right {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    min-height: 0;
+  }
+
+  .terminal-bar {
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .term-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .term-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+
+  .dot-red    { background: #f47067; opacity: 0.7; }
+  .dot-yellow { background: #e5c07b; opacity: 0.7; }
+  .dot-green  { background: #3dd68c; opacity: 0.7; }
+
+  .term-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--gray);
+    margin-left: 4px;
+  }
+
+  .terminal {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 28px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.75;
+    scroll-behavior: smooth;
+  }
+
+  .terminal::-webkit-scrollbar { width: 6px; }
+  .terminal::-webkit-scrollbar-track { background: transparent; }
+  .terminal::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  /* ── terminal output lines ── */
+  .line { display: flex; align-items: baseline; gap: 0; white-space: pre; }
+  .line.fade-in { animation: fadeIn 0.08s ease; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; } }
+
+  .l-port  { color: var(--white);  min-width: 90px; display: inline-block; }
+  .l-open  { color: var(--green);  min-width: 90px; display: inline-block; font-weight: 500; }
+  .l-closed{ color: var(--text-dim); min-width: 90px; display: inline-block; }
+  .l-filt  { color: var(--yellow); min-width: 90px; display: inline-block; }
+  .l-svc   { color: var(--cyan);   }
+  .l-dim   { color: var(--gray);   }
+  .l-head  { color: var(--blue);   font-weight: 500; }
+  .l-rule  { color: var(--border2); }
+  .l-err   { color: var(--red);    }
+  .l-sum-open   { color: var(--green);  font-weight: 500; }
+  .l-sum-filt   { color: var(--yellow); }
+  .l-sum-closed { color: var(--gray);   }
+  .l-prompt{ color: var(--green-dim); }
+
+  .cursor {
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    background: var(--green);
+    vertical-align: middle;
+    animation: blink 1.1s step-end infinite;
+    margin-left: 2px;
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ── progress bar ── */
+  .progress-wrap {
+    padding: 10px 28px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+    display: none;
+  }
+
+  .progress-bar-track {
+    height: 2px;
+    background: var(--border2);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 1px;
+    transition: width 0.3s linear;
+    width: 0%;
+  }
+
+  .progress-meta {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--gray);
+    margin-top: 5px;
+  }
+
+  /* ── stats bar ── */
+  .stats-bar {
+    padding: 10px 28px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 24px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stat-val {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--white);
+    line-height: 1;
+  }
+
+  .stat-val.green { color: var(--green); }
+  .stat-val.yellow { color: var(--yellow); }
+
+  .stat-lbl {
+    font-size: 11px;
+    color: var(--gray);
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* ── welcome screen ── */
+  .welcome {
+    padding: 32px 28px;
+  }
+
+  .welcome-ascii {
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--green-dim);
+    margin-bottom: 20px;
+    user-select: none;
+  }
+
+  .welcome-hint {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--gray);
+    line-height: 2;
+  }
+
+  .welcome-hint .hl { color: var(--blue); }
+
+  /* ── responsive ── */
+  @media (max-width: 720px) {
+    main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .panel-left { border-right: none; border-bottom: 1px solid var(--border); max-height: 420px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    portscan
+  </div>
+  <div class="header-meta">TCP · async · zero deps</div>
+</header>
+
+<main>
+  <!-- ── LEFT PANEL ── -->
+  <div class="panel-left">
+
+    <div class="panel-section">
+      <div class="section-label">Target</div>
+      <label>host or ip address</label>
+      <input type="text" id="host" placeholder="192.168.1.1  or  example.com" autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">Ports</div>
+
+      <div class="preset-grid" id="presets">
+        <div class="preset-chip active" data-ports="80,443,8080,8443,8000,3000,5000">web</div>
+        <div class="preset-chip" data-ports="3306,5432,6379,27017,9200,1433,5984,9042">db</div>
+        <div class="preset-chip" data-ports="21,22,23,25,53,110,143,389,445,3389">common</div>
+        <div class="preset-chip" data-ports="22">ssh</div>
+        <div class="preset-chip" data-ports="80,443">http</div>
+        <div class="preset-chip" data-ports="">custom</div>
+      </div>
+
+      <div style="margin-top: 12px;">
+        <label>custom ports (e.g. 22,80-443)</label>
+        <input type="text" id="custom-ports" placeholder="22,80,443  or  1-1024" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">Options</div>
+      <div class="input-row">
+        <div>
+          <label>workers</label>
+          <input type="number" id="workers" value="200" min="1" max="1000">
+        </div>
+        <div>
+          <label>timeout (ms)</label>
+          <input type="number" id="timeout" value="800" min="100" max="10000">
+        </div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">show only open ports</span>
+        <label class="toggle">
+          <input type="checkbox" id="only-open">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">service name lookup</span>
+        <label class="toggle">
+          <input type="checkbox" id="show-service" checked>
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <button class="scan-btn" id="scan-btn" onclick="startScan()">▶  run scan</button>
+      <button class="stop-btn" id="stop-btn" onclick="stopScan()">■  stop</button>
+    </div>
+
+  </div>
+
+  <!-- ── RIGHT PANEL: TERMINAL ── -->
+  <div class="panel-right">
+    <div class="terminal-bar">
+      <div class="term-dots">
+        <div class="term-dot dot-red"></div>
+        <div class="term-dot dot-yellow"></div>
+        <div class="term-dot dot-green"></div>
+      </div>
+      <span class="term-title" id="term-title">— portscan —</span>
+    </div>
+
+    <div class="terminal" id="terminal">
+      <div class="welcome">
+        <div class="welcome-ascii">
+ ____   ___  ____ _____ ____   ____    _    _   _
+|  _ \ / _ \|  _ \_   _/ ___| / ___|  / \  | \ | |
+| |_) | | | | |_) || | \___ \| |     / _ \ |  \| |
+|  __/| |_| |  _ < | |  ___) | |___ / ___ \| |\  |
+|_|    \___/|_| \_\|_| |____/ \____/_/   \_\_| \_|
+        </div>
+        <div class="welcome-hint">
+  <span class="l-dim">$</span> TCP port scanner — runs entirely in your browser<br><br>
+  <span class="l-dim">→</span> enter a target host on the left<br>
+  <span class="l-dim">→</span> pick a port preset or enter custom ports<br>
+  <span class="l-dim">→</span> hit <span class="hl">run scan</span><br><br>
+  <span class="l-dim">note:</span> browser security limits direct TCP connections.<br>
+  <span class="l-dim">      </span> this tool uses fetch/websocket probing to detect<br>
+  <span class="l-dim">      </span> reachable services. for full TCP scans, use the<br>
+  <span class="l-dim">      </span> <span class="hl">scan.py</span> CLI tool downloaded from this session.<br>
+        </div>
+      </div>
+    </div>
+
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-meta">
+        <span id="progress-text">scanning…</span>
+        <span id="progress-pct">0%</span>
+      </div>
+    </div>
+
+    <div class="stats-bar" id="stats-bar" style="display:none">
+      <div class="stat"><div class="stat-val green" id="stat-open">0</div><div class="stat-lbl">open</div></div>
+      <div class="stat"><div class="stat-val yellow" id="stat-filt">0</div><div class="stat-lbl">filtered</div></div>
+      <div class="stat"><div class="stat-val" id="stat-closed">0</div><div class="stat-lbl">closed</div></div>
+      <div class="stat"><div class="stat-val" id="stat-total">0</div><div class="stat-lbl">scanned</div></div>
+      <div class="stat"><div class="stat-val" id="stat-time">—</div><div class="stat-lbl">seconds</div></div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+const SERVICES = {
+  20:'FTP-data',21:'FTP',22:'SSH',23:'Telnet',25:'SMTP',53:'DNS',
+  67:'DHCP',68:'DHCP',69:'TFTP',80:'HTTP',110:'POP3',111:'RPC',
+  119:'NNTP',123:'NTP',135:'MSRPC',137:'NetBIOS',138:'NetBIOS',
+  139:'NetBIOS',143:'IMAP',161:'SNMP',389:'LDAP',443:'HTTPS',
+  445:'SMB',465:'SMTPS',514:'Syslog',515:'LPD',587:'SMTP',
+  631:'IPP',636:'LDAPS',993:'IMAPS',995:'POP3S',1080:'SOCKS',
+  1433:'MSSQL',1521:'Oracle',1723:'PPTP',2049:'NFS',2181:'Zookeeper',
+  3000:'Dev-HTTP',3306:'MySQL',3389:'RDP',4369:'EPMD',5000:'Dev-HTTP',
+  5432:'PostgreSQL',5672:'AMQP',5900:'VNC',5984:'CouchDB',6379:'Redis',
+  6443:'Kubernetes',7001:'WebLogic',8000:'HTTP-alt',8080:'HTTP-proxy',
+  8443:'HTTPS-alt',8888:'Jupyter',9000:'PHP-FPM',9042:'Cassandra',
+  9090:'Prometheus',9200:'Elasticsearch',9300:'Elasticsearch',
+  27017:'MongoDB',27018:'MongoDB',
+};
+
+let scanning = false;
+let stopRequested = false;
+let scanStartTime = 0;
+
+// ── port parsing ──────────────────────────────────────────────
+function parsePorts(spec) {
+  const ports = new Set();
+  for (const part of spec.split(',')) {
+    const t = part.trim();
+    if (!t) continue;
+    if (t.includes('-')) {
+      const [a, b] = t.split('-').map(Number);
+      if (isNaN(a)||isNaN(b)||a<1||b>65535) throw new Error(`Invalid range: ${t}`);
+      for (let p = Math.min(a,b); p <= Math.max(a,b); p++) ports.add(p);
+    } else {
+      const p = parseInt(t);
+      if (isNaN(p)||p<1||p>65535) throw new Error(`Invalid port: ${t}`);
+      ports.add(p);
+    }
+  }
+  return [...ports].sort((a,b)=>a-b);
+}
+
+// ── preset chips ──────────────────────────────────────────────
+document.querySelectorAll('.preset-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    const ports = chip.dataset.ports;
+    const customInput = document.getElementById('custom-ports');
+    if (ports) {
+      customInput.value = ports;
+    } else {
+      customInput.value = '';
+      customInput.focus();
+    }
+  });
+});
+
+// ── terminal helpers ──────────────────────────────────────────
+function term() { return document.getElementById('terminal'); }
+
+function clearTerminal() {
+  term().innerHTML = '';
+}
+
+function addLine(html, cls='') {
+  const el = document.createElement('div');
+  el.className = 'line fade-in' + (cls ? ' '+cls : '');
+  el.innerHTML = html;
+  term().appendChild(el);
+  term().scrollTop = term().scrollHeight;
+  return el;
+}
+
+function addRaw(html) {
+  return addLine(html);
+}
+
+function cursor() {
+  const el = document.createElement('span');
+  el.className = 'cursor';
+  el.id = 'blink-cursor';
+  term().appendChild(el);
+  term().scrollTop = term().scrollHeight;
+}
+
+function removeCursor() {
+  const c = document.getElementById('blink-cursor');
+  if (c) c.remove();
+}
+
+function setProgress(pct, scanned, total) {
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = Math.round(pct) + '%';
+  document.getElementById('progress-text').textContent = `scanned ${scanned} / ${total}`;
+}
+
+function updateStats(open, filt, closed) {
+  document.getElementById('stat-open').textContent   = open;
+  document.getElementById('stat-filt').textContent   = filt;
+  document.getElementById('stat-closed').textContent = closed;
+  document.getElementById('stat-total').textContent  = open + filt + closed;
+}
+
+// ── browser-based port probing ────────────────────────────────
+// Browsers can't do raw TCP, but we can probe HTTP ports via fetch
+// and detect WS-capable ports. This gives useful signal for web ports.
+async function probePort(host, port, timeoutMs) {
+  // For HTTP/HTTPS ports, try a fetch
+  const httpPorts = new Set([80,443,8080,8443,8000,8888,3000,5000,9090,9200,7001,9000]);
+  if (httpPorts.has(port)) {
+    const proto = [443,8443].includes(port) ? 'https' : 'http';
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+      await fetch(`${proto}://${host}:${port}`, {
+        method: 'HEAD',
+        mode: 'no-cors',
+        signal: ctrl.signal,
+        cache: 'no-store',
+      });
+      clearTimeout(timer);
+      return 'open';
+    } catch(e) {
+      if (e.name === 'AbortError') return 'filtered';
+      // A network error on no-cors often still means something responded
+      if (e.message && (e.message.includes('Failed to fetch') || e.message.includes('NetworkError'))) {
+        // Try to distinguish refused vs filtered by timing
+        return 'filtered';
+      }
+      return 'closed';
+    }
+  }
+
+  // For non-HTTP ports, attempt a WebSocket connection
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      ws.close();
+      resolve('filtered');
+    }, timeoutMs);
+    let ws;
+    try {
+      ws = new WebSocket(`ws://${host}:${port}`);
+      ws.onopen  = () => { clearTimeout(timer); ws.close(); resolve('open'); };
+      ws.onerror = () => { clearTimeout(timer); resolve('closed'); };
+      ws.onclose = (e) => {
+        clearTimeout(timer);
+        // code 1006 = abnormal close (connection refused) → closed
+        // code 1001/1000 → something was there
+        resolve(e.code === 1006 ? 'closed' : 'open');
+      };
+    } catch(e) {
+      clearTimeout(timer);
+      resolve('closed');
+    }
+  });
+}
+
+// ── main scan ─────────────────────────────────────────────────
+async function startScan() {
+  if (scanning) return;
+
+  const host = document.getElementById('host').value.trim();
+  if (!host) {
+    document.getElementById('host').focus();
+    return;
+  }
+
+  const portSpec = document.getElementById('custom-ports').value.trim();
+  if (!portSpec) {
+    alert('Please enter ports or select a preset.');
+    return;
+  }
+
+  let ports;
+  try {
+    ports = parsePorts(portSpec);
+  } catch(e) {
+    alert('Invalid port spec: ' + e.message);
+    return;
+  }
+
+  if (ports.length === 0) { alert('No ports specified.'); return; }
+
+  const workers    = Math.min(Math.max(parseInt(document.getElementById('workers').value)||100, 1), 500);
+  const timeoutMs  = Math.min(Math.max(parseInt(document.getElementById('timeout').value)||800, 100), 10000);
+  const onlyOpen   = document.getElementById('only-open').checked;
+  const showSvc    = document.getElementById('show-service').checked;
+
+  scanning = true;
+  stopRequested = false;
+  scanStartTime = performance.now();
+
+  document.getElementById('scan-btn').disabled = true;
+  document.getElementById('stop-btn').style.display = 'block';
+  document.getElementById('progress-wrap').style.display = 'block';
+  document.getElementById('stats-bar').style.display = 'flex';
+
+  clearTerminal();
+  document.getElementById('term-title').textContent = `scanning ${host}`;
+
+  // Header
+  addRaw(`<span class="l-prompt">$</span> <span class="l-head">scan</span> <span style="color:#abb2bf">${host}</span> <span class="l-dim">-p ${portSpec} -w ${workers} -t ${timeoutMs}ms</span>`);
+  addRaw(`<span class="l-dim">  resolving host…</span>`);
+  addRaw(``);
+  addRaw(`<span class="l-dim">  ${'PORT'.padEnd(10)}${'STATE'.padEnd(14)}SERVICE</span>`);
+  addRaw(`<span class="l-rule">  ${'─'.repeat(42)}</span>`);
+
+  let open=0, filt=0, closed=0;
+  let scanned = 0;
+  const allResults = [];
+
+  // Run with concurrency limit
+  const queue = [...ports];
+  const inFlight = new Set();
+
+  async function worker() {
+    while (queue.length > 0 && !stopRequested) {
+      const port = queue.shift();
+      if (port === undefined) break;
+      const state = await probePort(host, port, timeoutMs);
+      const svc = SERVICES[port] || '';
+
+      if (state === 'open')     open++;
+      else if (state === 'filtered') filt++;
+      else closed++;
+
+      scanned++;
+      allResults.push({port, state, svc});
+      setProgress((scanned/ports.length)*100, scanned, ports.length);
+      updateStats(open, filt, closed);
+
+      if (state === 'open') {
+        const svcSpan = showSvc && svc ? `  <span class="l-svc">${svc}</span>` : '';
+        addRaw(`  <span class="l-port">${String(port).padEnd(10)}</span><span class="l-open">${'open'.padEnd(14)}</span>${svcSpan}`);
+      } else if (!onlyOpen) {
+        if (state === 'filtered') {
+          const svcSpan = showSvc && svc ? `  <span class="l-dim">${svc}</span>` : '';
+          addRaw(`  <span class="l-port">${String(port).padEnd(10)}</span><span class="l-filt">${'filtered'.padEnd(14)}</span>${svcSpan}`);
+        } else {
+          const svcSpan = showSvc && svc ? `  <span class="l-dim">${svc}</span>` : '';
+          addRaw(`  <span class="l-port l-dim">${String(port).padEnd(10)}</span><span class="l-closed">${'closed'.padEnd(14)}</span>${svcSpan}`);
+        }
+      }
+    }
+  }
+
+  const workerCount = Math.min(workers, ports.length, 50); // cap at 50 concurrent for browser
+  await Promise.all(Array.from({length: workerCount}, worker));
+
+  // ── summary ──
+  const elapsed = ((performance.now() - scanStartTime) / 1000).toFixed(2);
+  document.getElementById('stat-time').textContent = elapsed;
+
+  addRaw(`<span class="l-rule">  ${'─'.repeat(42)}</span>`);
+  if (open === 0) {
+    addRaw(`  <span class="l-dim">no open ports found</span>`);
+  }
+  addRaw(`  <span class="l-sum-open">${open} open</span>  <span class="l-sum-filt">${filt} filtered</span>  <span class="l-sum-closed">${closed} closed</span>  <span class="l-dim">— ${elapsed}s</span>`);
+  addRaw(``);
+  cursor();
+
+  document.getElementById('term-title').textContent = `scan complete — ${host}`;
+  document.getElementById('progress-wrap').style.display = 'none';
+
+  scanning = false;
+  stopRequested = false;
+  document.getElementById('scan-btn').disabled = false;
+  document.getElementById('stop-btn').style.display = 'none';
+}
+
+function stopScan() {
+  stopRequested = true;
+  addRaw(`<span class="l-err">  scan interrupted by user</span>`);
+}
+
+// Enter key on host input
+document.getElementById('host').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startScan();
+});
+document.getElementById('custom-ports').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startScan();
+});
+</script>
+</body>
+</html>
